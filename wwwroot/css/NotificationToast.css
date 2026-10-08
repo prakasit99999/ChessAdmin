@@ -1,0 +1,26 @@
+﻿/* Notification Toast Styles */
+.toast-container {
+    gap: 1rem;
+}
+
+.toast {
+    width: 360px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s ease-out;
+}
+
+.toast-header {
+    border-radius: 0.25rem 0.25rem 0 0;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
