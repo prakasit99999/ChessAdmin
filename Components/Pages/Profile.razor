@@ -1,0 +1,106 @@
+﻿@page "/profile/edit/{UserId:int}"
+@rendermode InteractiveServer
+
+<div class="admin-shell">
+    <Sideber></Sideber>
+    <div class="admin-main">
+        <Navbar></Navbar>
+
+        <main class="dashboard-content">
+            <div class="container-fluid px-3 px-lg-4 py-4">
+                <div class="page-heading d-flex justify-content-between align-items-center mb-4">
+                    <div class="page-heading-copy d-flex align-items-center gap-3">
+                        <span class="page-icon"><i class="bi bi-person-badge" aria-hidden="true"></i></span>
+                        <div>
+                            <p class="eyebrow mb-1">Account</p>
+                            <h1 class="h3 mb-1">Profile</h1>
+                            <p class="text-muted mb-0">Manage your personal details and credentials.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <a class="btn btn-outline-secondary btn-sm" href="users">
+                            <i class="bi bi-arrow-left me-1"></i> Back
+                        </a>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger mb-3" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success mb-3" role="alert">
+                        @successMessage
+                    </div>
+                }
+
+                <section class="row g-3">
+                    <!-- การ์ดแสดงข้อมูลฝั่งซ้าย (Read-only) -->
+                    <div class="col-12 col-xl-4">
+                        <div class="panel h-100 text-center profile-card">
+                            <h2 class="h5 mt-3 mb-1">@profileModel.Username</h2>
+                            <p class="text-muted mb-3">User ID: @UserId</p>
+                            <div class="info-list mt-4 text-start">
+                                <div><span>Username</span><strong>@profileModel.Username</strong></div>
+                                <div><span>Email</span><strong>@profileModel.Email</strong></div>
+                            </div>
+                            <div class="row g-2 mt-3 text-start">
+                                <div class="col-6"><div class="border rounded p-2"><small class="text-muted d-block">Rating</small><strong>@profileModel.Rating</strong></div></div>
+                                <div class="col-6"><div class="border rounded p-2"><small class="text-muted d-block">Win</small><strong class="text-success">@profileModel.Win</strong></div></div>
+                                <div class="col-6"><div class="border rounded p-2"><small class="text-muted d-block">Lose</small><strong class="text-danger">@profileModel.Lose</strong></div></div>
+                                <div class="col-6"><div class="border rounded p-2"><small class="text-muted d-block">Drawn</small><strong class="text-warning">@profileModel.Drawn</strong></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ฟอร์มแก้ไขข้อมูลฝั่งขวา -->
+                    <div class="col-12 col-xl-8">
+                        <EditForm class="panel" Model="@profileModel" OnValidSubmit="SaveProfileAsync">
+                            <div class="panel-header">
+                                <div>
+                                    <h2 class="h5 mb-1 section-title"><i class="bi bi-person-gear" aria-hidden="true"></i><span>Profile Settings</span></h2>
+                                    <p class="text-muted mb-0">Update account profile details.</p>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profileUsername">Username</label>
+                                    <!-- เปลี่ยนเป็น @bind เพื่อให้บันทึกค่าที่พิมพ์ใหม่ได้ -->
+                                    <input class="form-control" id="profileUsername" type="text" @bind="profileModel.Username" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profileEmail">Email</label>
+                                    <!-- เปลี่ยนเป็น @bind เพื่อให้บันทึกค่าที่พิมพ์ใหม่ได้ -->
+                                    <input class="form-control" id="profileEmail" type="email" @bind="profileModel.Email" required />
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label" for="profilePassword">New Password</label>
+                                    <!-- เปลี่ยนเป็น @bind เพื่อให้รับรหัสผ่านใหม่ได้ -->
+                                    <input class="form-control" id="profilePassword" type="password" autocomplete="new-password" @bind="profileModel.Password" placeholder="••••••••" />
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-4">
+                                <button class="btn btn-primary" type="submit" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>
+                                        <span>Save Profile</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+</div>

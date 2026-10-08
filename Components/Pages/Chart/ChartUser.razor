@@ -1,0 +1,46 @@
+﻿@rendermode InteractiveServer
+@using ChessAdmin.Components.Models
+@using Microsoft.AspNetCore.Components
+
+<div class="p-2">
+    @if (Users.Count == 0)
+    {
+        <p class="text-muted text-center mb-0">ไม่พบข้อมูล Rating</p>
+    }
+    else
+    {
+        <ApexChart TItem="UserItem"
+                   Title="User Rating Ranking"
+                   Options="options">
+            <ApexPointSeries TItem="UserItem"
+                             Items="Users"
+                             Name="Rating"
+                             SeriesType="SeriesType.Bar"
+                             XValue="user => user.Username"
+                             YValue="user => user.Rating" />
+        </ApexChart>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<UserItem> Users { get; set; } = Array.Empty<UserItem>();
+
+    private ApexChartOptions<UserItem> options = new()
+    {
+        Chart = new ApexCharts.Chart
+        {
+            Height = "350px",
+            Width = "100%"
+        },
+        PlotOptions = new PlotOptions
+        {
+            Bar = new PlotOptionsBar
+            {
+                BorderRadius = 4,
+                ColumnWidth = "45%",
+                Horizontal = true
+            }
+        }
+    };
+}

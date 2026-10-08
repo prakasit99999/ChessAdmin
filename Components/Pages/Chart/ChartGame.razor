@@ -1,0 +1,123 @@
+﻿@using ApexCharts
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<div class="panel p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="h6 mb-0 fw-bold">
+            <i class="bi bi-graph-up me-2 text-primary"></i>Game Activity Trend
+        </h5>
+
+        <!-- Filter เลือกจำนวนวันย้อนหลัง -->
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0">Period:</label>
+            <select class="form-select form-select-sm" style="width: auto;" @onchange="OnDaysChanged">
+                <option value="7">7 Days</option>
+                <option value="30" selected>30 Days</option>
+                <option value="60">60 Days</option>
+                <option value="90">90 Days</option>
+            </select>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="ms-2 text-muted small">Loading chart data...</span>
+        </div>
+    }
+    else if (chartData != null && chartData.Any())
+    {
+        <ApexChart TItem="GameChartDataDto"
+                   Title=""
+                   Options="options">
+
+            <!-- เส้นที่ 1: AI Games -->
+            <ApexPointSeries TItem="GameChartDataDto"
+                             Items="chartData"
+                             Name="AI Matches"
+                             XValue="e => e.DateLabel"
+                             YValue="e => e.AiGames" />
+
+            <!-- เส้นที่ 2: Multiplayer Games -->
+            <ApexPointSeries TItem="GameChartDataDto"
+                             Items="chartData"
+                             Name="Multiplayer Matches"
+                             XValue="e => e.DateLabel"
+                             YValue="e => e.MultiplayerGames" />
+        </ApexChart>
+    }
+    else
+    {
+        <div class="text-center py-5 text-muted">
+            <small>No game activity records found for this period.</small>
+        </div>
+    }
+</div>
+
+@code {
+    private List<GameChartDataDto> chartData = new();
+    private bool isLoading = true;
+    private int selectedDays = 30;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadChartStatsAsync();
+            StateHasChanged(); // แจ้งเตือน UI ให้วาดกราฟใหม่เมื่อได้ข้อมูล
+        }
+    }
+
+    private async Task OnDaysChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int days))
+        {
+            selectedDays = days;
+            await LoadChartStatsAsync();
+        }
+    }
+
+    private async Task LoadChartStatsAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "token");
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var result = await Http.GetFromJsonAsync<List<GameChartDataDto>>($"/api/Game/chart-stats?days={selectedDays}");
+                chartData = result ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching chart data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private ApexChartOptions<GameChartDataDto> options = new()
+    {
+        Chart = new ApexCharts.Chart
+        {
+            Height = "350px",
+            Width = "100%",
+            Type = ChartType.Line
+        },
+        Stroke = new Stroke
+        {
+            Curve = Curve.Smooth,
+            Width = 3
+        },
+        Colors = new List<string> { "#ffc107", "#0d6efd" }
+    };
+}

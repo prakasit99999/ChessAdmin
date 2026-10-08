@@ -1,0 +1,125 @@
+@using ChessAdmin.Components.Models
+@using ChessAdmin.Services
+@implements IDisposable
+@inject INotificationService NotificationService
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+    @foreach (var toast in Toasts)
+    {
+        <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-@GetToastBgClass(toast.Severity) text-@GetToastTextClass(toast.Severity)">
+                <i class="@GetToastIcon(toast.Severity) me-2"></i>
+                <strong class="me-auto">@toast.Title</strong>
+                <small>@GetTimeAgo(toast.CreatedAt)</small>
+                <button type="button" 
+                        class="btn-close btn-close-@(GetToastBgClass(toast.Severity) == "danger" || GetToastBgClass(toast.Severity) == "warning" ? "white" : "")"
+                        @onclick="() => RemoveToast(toast.Id)" 
+                        aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                @toast.Message
+                @if (toast.Metadata != null && toast.Metadata.ContainsKey("link"))
+                {
+                    <br />
+                    <a href="@toast.Metadata["link"]" class="text-decoration-none small">
+                        ดูรายละเอียด <i class="bi bi-arrow-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> Toasts { get; set; } = new();
+    private Timer? _autoHideTimer;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotificationReceived += ShowToast;
+    }
+
+    private void ShowToast(NotificationDto notification)
+    {
+        // เพิ่มแจ้งเตือนเข้าไปในรายการ Toast
+        Toasts.Add(notification);
+
+        // ถ้ามี Toast มากกว่า 5 รายการ ให้ลบรายการเก่าที่สุด
+        if (Toasts.Count > 5)
+        {
+            Toasts.RemoveAt(0);
+        }
+
+        StateHasChanged();
+
+        // ตั้งค่า Auto-hide หลังจาก 5 วินาที
+        _ = Task.Delay(5000).ContinueWith(_ => 
+        {
+            if (Toasts.Contains(notification))
+            {
+                RemoveToast(notification.Id);
+            }
+        });
+    }
+
+    private void RemoveToast(string notificationId)
+    {
+        var toast = Toasts.FirstOrDefault(t => t.Id == notificationId);
+        if (toast != null)
+        {
+            Toasts.Remove(toast);
+            StateHasChanged();
+        }
+    }
+
+    private string GetToastBgClass(string severity)
+    {
+        return severity.ToLower() switch
+        {
+            "success" => "success",
+            "warning" => "warning",
+            "error" => "danger",
+            "info" => "info",
+            _ => "secondary"
+        };
+    }
+
+    private string GetToastTextClass(string severity)
+    {
+        return severity.ToLower() switch
+        {
+            "success" => "white",
+            "warning" => "dark",
+            "error" => "white",
+            "info" => "white",
+            _ => "dark"
+        };
+    }
+
+    private string GetToastIcon(string severity)
+    {
+        return severity.ToLower() switch
+        {
+            "success" => "bi bi-check-circle",
+            "warning" => "bi bi-exclamation-triangle",
+            "error" => "bi bi-x-circle",
+            "info" => "bi bi-info-circle",
+            _ => "bi bi-bell"
+        };
+    }
+
+    private string GetTimeAgo(DateTime createdAt)
+    {
+        var timeSpan = DateTime.UtcNow - createdAt;
+        return timeSpan.TotalSeconds < 60 ? "เมื่อสักครู่" :
+               timeSpan.TotalMinutes < 60 ? $"{(int)timeSpan.TotalMinutes} นาที" :
+               createdAt.ToString("HH:mm");
+    }
+
+    void IDisposable.Dispose()
+    {
+        NotificationService.OnNotificationReceived -= ShowToast;
+        _autoHideTimer?.Dispose();
+    }
+
+}

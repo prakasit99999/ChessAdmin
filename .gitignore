@@ -53,3 +53,23 @@ dkms.conf
 
 # debug information files
 *.dwo
+# ==========================================
+# .NET / Visual Studio Specific
+# ==========================================
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Publish output
+publish/
+**/PublishProfiles/
+
+# NuGet Packages
+*.nupkg
+**/packages/

@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["ChessAdmin.styles.css"]" />
+    <link rel="stylesheet" href="@Assets["css/adminlte.css"]" as="style" />
+    <link rel="stylesheet" href="@Assets["vendors/bootstrap-icons/bootstrap-icons.css"]" />
+    <link rel="stylesheet" href="@Assets["css/style.css"]" as="style" />
+    <link rel="stylesheet" href="@Assets["css/ChessBoard.css"]" as="style" />
+    <link rel="stylesheet" href="@Assets["css/NotificationToast.css"] as="style" />
+
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["js/adminlte.js"]"></script>
+    <script src="@Assets["js/main.js"]"></script>
+    <script type="module" src="_content/Blazor-ApexCharts/js/apexcharts.js"></script>
+    <script type="module" src="_content/Blazor-ApexCharts/js/blazor-apexcharts.js"></script>
+    <script src="@Assets["js/bootstrap.bundle.min.js"]"></script>
+</body>
+
+</html>

@@ -1,0 +1,14 @@
+@namespace ChessAdmin.Components.Shared.Chess
+
+<div class="move-list">
+    @* TODO: Implement Move List *@
+    <p>Move List Component</p>
+</div>
+
+@code {
+    [Parameter]
+    public int CurrentIndex { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnMoveSelected { get; set; }
+}

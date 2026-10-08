@@ -1,0 +1,203 @@
+﻿@page "/ai-performance"
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<div class="admin-shell">
+    <Sideber></Sideber>
+    <div class="admin-main">
+        <Header></Header>
+        <main class="dashboard-content">
+            <div class="container-fluid px-3 px-lg-4 py-4">
+                <!-- Header Control -->
+                <div class="row mb-4">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="h3 mb-1">AI Performance Analytics</h1>
+                            <p class="text-muted mb-0">เปรียบเทียบประสิทธิภาพการประมวลผลระหว่าง Minimax และ Alpha-Beta Pruning</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <!-- Depth Selector (จำกัด Max Depth ตามระบบ) -->
+                            <select class="form-select form-select-sm" @bind="selectedDepth" disabled="@isLoading">
+                                <option value="1">Depth 1 (Fastest)</option>
+                                <option value="2">Depth 2 (Quick)</option>
+                                <option value="3">Depth 3 (Standard)</option>
+                                <option value="4">Depth 4 (Deep Search)</option>
+                                <option value="5">Depth 5 (Maximum Support)</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm px-3" @onclick="FetchAnalyticsData" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Loading...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                    <span>Refresh</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metric Summary Cards -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small fw-bold text-uppercase">Nodes Evaluated (Avg)</div>
+                                <div class="h3 mb-1 mt-2">@responseDto.CurrentMetrics.AlphaBetaNodes.ToString("N0")</div>
+                                <div class="small text-success">
+                                    <i class="bi bi-arrow-down me-1"></i>
+                                    ลดลง @responseDto.CurrentMetrics.NodeReductionRate% เทียบกับ Minimax
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small fw-bold text-uppercase">Execution Time</div>
+                                <div class="h3 mb-1 mt-2">@responseDto.CurrentMetrics.AlphaBetaTimeMs ms</div>
+                                <div class="small text-success">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i>
+                                    เร็วกว่าปกติ @responseDto.CurrentMetrics.SpeedupFactor
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small fw-bold text-uppercase">Pruning Efficiency</div>
+                                <div class="h3 mb-1 mt-2">@responseDto.CurrentMetrics.PruningEfficiency%</div>
+                                <div class="small text-muted">กิ่งที่ไม่จำเป็นถูกตัดออกจากการค้นหา</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small fw-bold text-uppercase">Effective Depth</div>
+                                <div class="h3 mb-1 mt-2">Level @responseDto.SelectedDepth</div>
+                                <div class="small text-info">
+                                    <i class="bi bi-diagram-3 me-1"></i>
+                                    Branching Factor: ~35
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="row g-3 mb-4">
+                    <!-- Chart 1: Node Count -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white py-3">
+                                <h5 class="card-title mb-0">Nodes Evaluated by Search Depth</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (responseDto.BenchmarkHistory.Any())
+                                {
+                                    <ApexChart TItem="AiBenchmarkDepthDto" Title="" Options="NodeChartOptions">
+                                        <ApexPointSeries TItem="AiBenchmarkDepthDto"
+                                                         Items="responseDto.BenchmarkHistory"
+                                                         Name="Minimax Nodes"
+                                                         SeriesType="SeriesType.Bar"
+                                                         XValue="@(e => $"Depth {e.Depth}")"
+                                                         YValue="@(e => e.MinimaxNodes)" />
+
+                                        <ApexPointSeries TItem="AiBenchmarkDepthDto"
+                                                         Items="responseDto.BenchmarkHistory"
+                                                         Name="Alpha-Beta Nodes"
+                                                         SeriesType="SeriesType.Bar"
+                                                         XValue="@(e => $"Depth {e.Depth}")"
+                                                         YValue="@(e => e.AlphaBetaNodes)" />
+                                    </ApexChart>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Execution Time -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-white py-3">
+                                <h5 class="card-title mb-0">Execution Time (ms)</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (responseDto.BenchmarkHistory.Any())
+                                {
+                                    <ApexChart TItem="AiBenchmarkDepthDto" Title="" Options="TimeChartOptions">
+                                        <ApexPointSeries TItem="AiBenchmarkDepthDto"
+                                                         Items="responseDto.BenchmarkHistory"
+                                                         Name="Minimax Time (ms)"
+                                                         SeriesType="SeriesType.Line"
+                                                         XValue="@(e => $"Depth {e.Depth}")"
+                                                         YValue="@(e => e.MinimaxTimeMs)" />
+
+                                        <ApexPointSeries TItem="AiBenchmarkDepthDto"
+                                                         Items="responseDto.BenchmarkHistory"
+                                                         Name="Alpha-Beta Time (ms)"
+                                                         SeriesType="SeriesType.Line"
+                                                         XValue="@(e => $"Depth {e.Depth}")"
+                                                         YValue="@(e => e.AlphaBetaTimeMs)" />
+                                    </ApexChart>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Benchmark Log Table -->
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white py-3">
+                                <h5 class="card-title mb-0">Detailed Benchmark Log</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Depth</th>
+                                                <th>Minimax Nodes</th>
+                                                <th>Alpha-Beta Nodes</th>
+                                                <th>Pruned Nodes</th>
+                                                <th>Minimax Time</th>
+                                                <th>Alpha-Beta Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var row in responseDto.BenchmarkHistory)
+                                            {
+                                                <tr>
+                                                    <td><span class="badge bg-secondary">Depth @row.Depth</span></td>
+                                                    <td>@row.MinimaxNodes.ToString("N0")</td>
+                                                    <td class="fw-bold text-success">@row.AlphaBetaNodes.ToString("N0")</td>
+                                                    <td class="text-primary">@row.PrunedNodes.ToString("N0")</td>
+                                                    <td>@row.MinimaxTimeMs ms</td>
+                                                    <td class="fw-bold text-success">@row.AlphaBetaTimeMs ms</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</div>
+
+@code {
+  
+}

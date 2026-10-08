@@ -1,0 +1,140 @@
+﻿@page "/"
+@using ChessAdmin.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login</PageTitle>
+
+<div class="container-fluid p-0">
+    <div class="row g-0 min-vh-100">
+        <!-- Visual Background Side -->
+        <div class="col-lg-6 d-none d-lg-block position-relative">
+            <img src="https://s.isanook.com/sp/0/ud/323/1615986/chess.jpg?ip/resize/w728/q80/jpg"
+                 alt="Login visual background"
+                 class="w-100 h-100 object-fit-cover position-absolute top-0 start-0">
+        </div>
+
+        <!-- Form Side -->
+        <div class="col-lg-6 d-flex align-items-center justify-content-center bg-white p-4 p-sm-5">
+            <div class="w-100" style="max-width: 400px;">
+                <h1 class="fw-bold mb-1">Login</h1>
+                <p class="text-muted mb-4">Sign In to your account</p>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="login-form">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-person text-muted"></i>
+                            </span>
+                            <InputText @bind-Value="loginModel.Username" class="form-control bg-light border-start-0" placeholder="Username" required />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-lock text-muted"></i>
+                            </span>
+                            <InputText type="password" @bind-Value="loginModel.Password" class="form-control bg-light border-start-0" placeholder="Password" required />
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between">
+                        @if (isSubmitting)
+                        {
+                            <button class="btn btn-primary px-4" type="submit" disabled>
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                Logging in...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary px-4" type="submit">Login</button>
+                        }
+                        <a href="#" class="btn btn-link px-0 text-decoration-none">Forgot password?</a>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private string? errorMessage;
+    private bool isSubmitting = false;
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LoginResponseModel
+    {
+        public string? Token { get; set; }
+        public string? Username { get; set; }
+        public string? Role { get; set; }
+        public string? Email { get; set; }
+        public string? Message { get; set; }
+    }
+
+    private async Task HandleLogin()
+    {
+        isSubmitting = true;
+        errorMessage = null; // เคลียร์ Error เดิมก่อนเริ่มการส่งข้อมูล
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/Admin/login", loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseModel>();
+                if (result != null && result.Role == "Admin")
+                {
+                    // บันทึก Token ลง LocalStorage
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "token", result.Token);
+                    if (AuthStateProvider is AdminAuthStateProvider customAuthState)
+                    {
+                        customAuthState.NotifyUserAuthentication(result.Token);
+                    }
+                    // นำทางไปยังหน้า Index
+                    Navigation.NavigateTo("/Index");
+                }
+                else
+                {
+                    errorMessage = "คุณไม่มีสิทธิ์เข้าถึงระบบ (เฉพาะ Admin)";
+                }
+            }
+            else
+            {
+                var apiError = await response.Content.ReadFromJsonAsync<LoginResponseModel>();
+                errorMessage = string.IsNullOrWhiteSpace(apiError?.Message)
+                    ? "Username หรือ Password ไม่ถูกต้อง"
+                    : apiError.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: " + ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

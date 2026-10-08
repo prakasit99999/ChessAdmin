@@ -1,0 +1,113 @@
+@namespace ChessAdmin.Components.Shared.Chess
+
+<div class="chess-board-wrapper">
+    <div class="chess-board-placeholder">
+        @for (int row = 0; row < 8; row++)
+        {
+            @for (int col = 0; col < 8; col++)
+            {
+                var r = row;
+                var c = col;
+                var isLight = (r + c) % 2 == 0;
+                var piece = board[r, c];
+
+                <div class="square @(isLight ? "light" : "dark")"
+                     style="grid-row: @(r + 1); grid-column: @(c + 1);"
+                     @onclick="() => HandleSquareClick(r, c)">
+                    @if (!string.IsNullOrEmpty(piece))
+                    {
+                        <span class="piece">@piece</span>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Position { get; set; } = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+
+    [Parameter]
+    public string Orientation { get; set; } = "white";
+
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnMove { get; set; }
+
+    // ตารางเก็บตัวหมาก 8x8
+    private string[,] board = new string[8, 8];
+
+    // ทำงานอัตโนมัติทุกครั้งที่ [Parameter] Position เปลี่ยนค่า
+    protected override void OnParametersSet()
+    {
+        ParseFenToBoard();
+    }
+
+    private void ParseFenToBoard()
+    {
+        board = new string[8, 8];
+
+        if (string.IsNullOrWhiteSpace(Position)) return;
+
+        // นำเฉพาะส่วน Position ใน FEN (ตัดส่วน turn/castling ด้านหลังออก)
+        var fenPlacement = Position.Split(' ')[0];
+        var rows = fenPlacement.Split('/');
+
+        for (int r = 0; r < Math.Min(8, rows.Length); r++)
+        {
+            string fenRow = rows[r];
+            int c = 0;
+
+            foreach (char ch in fenRow)
+            {
+                if (c >= 8) break;
+
+                if (char.IsDigit(ch))
+                {
+                    c += (int)char.GetNumericValue(ch); // ข้ามช่องว่างตามตัวเลข
+                }
+                else
+                {
+                    board[r, c] = GetUnicodePiece(ch);
+                    c++;
+                }
+            }
+        }
+    }
+
+    private async Task HandleSquareClick(int row, int col)
+    {
+        // แปลงพิกัด row, col เป็น Chess Notation เช่น "e4"
+        char file = (char)('a' + col);
+        int rank = 8 - row;
+        string squareNotation = $"{file}{rank}";
+
+        if (OnSelect.HasDelegate)
+        {
+            await OnSelect.InvokeAsync(squareNotation);
+        }
+    }
+
+    private string GetUnicodePiece(char piece)
+    {
+        return piece switch
+        {
+            'K' => "♔",
+            'Q' => "♕",
+            'R' => "♖",
+            'B' => "♗",
+            'N' => "♘",
+            'P' => "♙",
+            'k' => "♚",
+            'q' => "♛",
+            'r' => "♜",
+            'b' => "♝",
+            'n' => "♞",
+            'p' => "♟",
+            _ => ""
+        };
+    }
+}

@@ -1,0 +1,97 @@
+﻿@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.Net.Http.Headers
+@using ChessAdmin.Components.Models
+@using ChessAdmin.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@implements IDisposable
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject INotificationService NotificationService
+
+<nav class="navbar admin-navbar navbar-expand bg-white">
+    <div class="container-fluid px-3 px-lg-4">
+        <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-controls="adminSidebar" aria-expanded="true" aria-label="Toggle sidebar">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="navbar-actions ms-auto">
+            <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+                <i class="bi bi-moon-stars" data-theme-icon aria-hidden="true"></i>
+            </button>
+
+            <!-- Notifications Dropdown -->
+            <div class="dropdown">
+                <button class="icon-button position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                    @if (unreadCount > 0)
+                    {
+                        <span class="notification-dot bg-danger"></span>
+                    }
+                    <i class="bi bi-bell" aria-hidden="true"></i>
+                </button>
+
+                <div class="dropdown-menu dropdown-menu-end notification-menu shadow-sm" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                    <div class="dropdown-header d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
+                        <span class="fw-bold text-body">Notifications (@unreadCount)</span>
+                        @if (unreadCount > 0)
+                        {
+                            <button class="btn btn-link btn-sm text-decoration-none p-0 extra-small" @onclick="HandleMarkAllAsRead">
+                                อ่านทั้งหมด
+                            </button>
+                        }
+                    </div>
+
+                    @if (notifications.Any())
+                    {
+                        @foreach (var notif in notifications)
+                        {
+                            <a class="dropdown-item py-2 px-3 border-bottom @(!notif.IsRead ? "bg-light" : "")"
+                               href="javascript:void(0)"
+                               @onclick="() => HandleNotificationClick(notif)">
+                                <div class="d-flex align-items-start gap-2">
+                                    <div class="mt-1">
+                                        <i class="@GetNotificationIcon(notif.Severity)"></i>
+                                    </div>
+                                    <div class="flex-grow-1 overflow-hidden">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="notification-title fw-semibold text-truncate small">@notif.Title</span>
+                                            <span class="notification-time text-muted extra-small ms-2">@GetTimeAgo(notif.CreatedAt)</span>
+                                        </div>
+                                        <p class="mb-0 text-muted extra-small text-truncate">@notif.Message</p>
+                                    </div>
+                                </div>
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-bell-slash fs-4 d-block mb-1"></i>
+                            ไม่มีการแจ้งเตือน
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Profile Dropdown -->
+            <div class="dropdown">
+                <button class="profile-button dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="profile-name d-none d-sm-inline">@displayUsername</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button class="dropdown-item" type="button" @onclick="HandleLogout" disabled="@isLoggingOut">
+                            @(isLoggingOut ? "กำลังออกจากระบบ..." : "Sign out")
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>

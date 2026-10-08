@@ -1,0 +1,187 @@
+﻿@page "/game"
+@rendermode InteractiveServer
+@using ChessAdmin.Components.Models
+@implements IAsyncDisposable
+
+<div class="admin-shell">
+    <Sideber></Sideber>
+    <div class="admin-main">
+        <Navbar></Navbar>
+        <main class="dashboard-content">
+            <div class="container-fluid px-3 px-lg-4 py-4">
+                <section class="row g-3 mt-1">
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <article class="metric-card metric-primary">
+                            <div class="metric-top">
+                                <span class="metric-label">TotalCount</span>
+                                <span class="metric-icon"><i class="bi bi-controller"></i></span>
+                            </div>
+                            <div class="metric-value">@TotalGames</div>
+                            <div class="metric-meta"><span>Games Played</span></div>
+                        </article>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <article class="metric-card metric-success">
+                            <div class="metric-top">
+                                <span class="metric-label">Active Matches</span>
+                                <span class="metric-icon"><i class="bi bi-play-circle"></i></span>
+                            </div>
+                            <div class="metric-value">@ActiveMatches</div>
+                            <div class="metric-meta"><span class="text-success">Live Now</span></div>
+                        </article>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <article class="metric-card metric-warning">
+                            <div class="metric-top">
+                                <span class="metric-label">AI Matches</span>
+                                <span class="metric-icon"><i class="bi bi-cpu"></i></span>
+                            </div>
+                            <div class="metric-value">@AIMatches</div>
+                            <div class="metric-meta"><span>vs Minimax / Alpha-Beta</span></div>
+                        </article>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <article class="metric-card metric-danger">
+                            <div class="metric-top">
+                                <span class="metric-label">Ranked Games</span>
+                                <span class="metric-icon"><i class="bi bi-trophy"></i></span>
+                            </div>
+                            <div class="metric-value">@RankedGames</div>
+                            <div class="metric-meta"><span>Competitive Mode</span></div>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- Chart Section -->
+                <section class="panel mt-3 mb-2">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="h5 mb-1 section-title"><i class="bi bi-graph-up-arrow"></i><span>Game Activity Trend</span></h2>
+                            <p class="text-muted mb-0">Daily matches played across game modes.</p>
+                        </div>
+                    </div>
+                    <div class="p-1">
+                        <ChartGame></ChartGame>
+                    </div>
+                </section>
+                <section class="panel mt-3">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="h5 mb-1 section-title"><i class="bi bi-table"></i><span>Game Records</span></h2>
+                            <p class="text-muted mb-0">Review past and ongoing chess games.</p>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <input class="form-control form-control-sm table-search" 
+                                   type="search" 
+                                   placeholder="Search Game ID / Player"
+                                   @bind="searchTerm"
+                                   @bind:event="oninput"
+                                   @bind:after="SearchChanged" />
+
+                            <select class="form-select form-select-sm" @bind="GameType" @bind:after="() => LoadGamesAsync(1, PageSize, CancellationToken.None)">
+                                <option value="">All Types</option>
+                                <option value="single_player">singleVsplayer</option>
+                                <option value="ai_vs_ai">AI vs AI</option>
+                            </select>
+                            <select class="form-select form-select-sm" @bind="GameStatus" @bind:after="() => LoadGamesAsync(1, PageSize, CancellationToken.None)">
+                                <option value="">All Status</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="finished">Finished</option>
+                                <option value="Abandoned">Abandoned</option>
+                            </select>
+
+                            <a class="btn btn-light btn-sm" href="#"><i class="bi bi-download"></i> Export PGN</a>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Game ID</th>
+                                    <th>Matchup (White vs Black)</th>
+                                    <th>Type</th>
+                                    <th>Mode</th>
+                                    <th>Status</th>
+                                    <th>Result</th>
+                                    <th>Moves</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (isLoading)
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                else if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-danger">
+                                            <i class="bi bi-exclamation-circle"></i> @errorMessage
+                                        </td>
+                                    </tr>
+                                }
+                                else if (games.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-muted">No games found.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var game in games)
+                                    {
+                                        <tr>
+                                            <td><strong>#@game.GameId</strong></td>
+                                            <td>
+                                                <span class="badge text-bg-light border">@game.WhitePlayerUsername</span>
+                                                <span class="text-muted px-1">vs</span>
+                                                <span class="badge text-bg-dark">@game.BlackPlayerUsername</span>
+                                            </td>
+                                            <td>@game.GameType</td>
+                                            <td><span class="badge text-bg-warning">@game.MatchMode</span></td>
+                                            <td><span class="badge text-bg-success">@game.GameStatus</span></td>
+                                            <td>@game.Result</td>
+                                            <td>@game.MoveCount</td>
+                                            <td class="text-end">
+                                                <a class="btn btn-light btn-sm" href="/game/details/@game.GameId">View Details</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mt-3 px-3 pb-3">
+                        <p class="text-muted small mb-0">
+                            Showing @ShowingFrom to @ShowingTo of @TotalCount games
+                        </p>
+                        <nav aria-label="Games pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item @(PageNumber <= 1 ? "disabled" : "")">
+                                    <button class="page-link" type="button" @onclick="() => LoadGamesAsync(PageNumber - 1, PageSize, CancellationToken.None)" disabled="@(PageNumber <= 1)">Previous</button>
+                                </li>
+                                @for (var page = 1; page <= TotalPages; page++)
+                                {
+                                    var currentPage = page;
+                                    <li class="page-item @(currentPage == PageNumber ? "active" : "")">
+                                        <button class="page-link" type="button" @onclick="() => LoadGamesAsync(currentPage, PageSize, CancellationToken.None)">@currentPage</button>
+                                    </li>
+                                }
+                                <li class="page-item @(PageNumber >= TotalPages ? "disabled" : "")">
+                                    <button class="page-link" type="button" @onclick="() => LoadGamesAsync(PageNumber + 1, PageSize, CancellationToken.None)" disabled="@(PageNumber >= TotalPages)">Next</button>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+</div>

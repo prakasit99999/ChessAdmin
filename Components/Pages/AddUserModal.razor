@@ -1,0 +1,186 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using ChessAdmin.Components.Models
+
+@inject HttpClient Http
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true"
+         style="background-color: rgba(0,0,0,0.5);">
+
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark">
+                        <i class="bi bi-person-plus me-2 text-primary"></i>
+                        Add New User
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            aria-label="Close"
+                            @onclick="CloseModal">
+                    </button>
+                </div>
+
+                <EditForm Model="createUserModel"
+                          OnValidSubmit="HandleCreateUser">
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body p-4">
+                        @if (!string.IsNullOrWhiteSpace(errorMessage))
+                        {
+                            <div class="alert alert-danger py-2 mb-3">
+                                @errorMessage
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Username
+                            </label>
+
+                            <InputText class="form-control"
+                                       @bind-Value="createUserModel.Username"
+                                       placeholder="e.g. grandmaster99" />
+
+                            <ValidationMessage For="@(() => createUserModel.Username)"
+                                               class="text-danger small" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Email
+                            </label>
+
+                            <InputText class="form-control"
+                                       @bind-Value="createUserModel.Email"
+                                       placeholder="user@example.com" />
+
+                            <ValidationMessage For="@(() => createUserModel.Email)"
+                                               class="text-danger small" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Password
+                            </label>
+
+                            <InputText type="password"
+                                       class="form-control"
+                                       @bind-Value="createUserModel.Password"
+                                       placeholder="••••••••" />
+
+                            <ValidationMessage For="@(() => createUserModel.Password)"
+                                               class="text-danger small" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Confirm Password
+                            </label>
+
+                            <InputText type="password"
+                                       class="form-control"
+                                       @bind-Value="createUserModel.ConfirmPassword"
+                                       placeholder="••••••••" />
+
+                            <ValidationMessage For="@(() => createUserModel.ConfirmPassword)"
+                                               class="text-danger small" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer bg-light px-4">
+                        <button type="button"
+                                class="btn btn-secondary btn-sm"
+                                @onclick="CloseModal">
+                            Cancel
+                        </button>
+
+                        <button type="submit"
+                                class="btn btn-primary btn-sm px-3"
+                                disabled="@isSubmitting">
+
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>
+                                    <i class="bi bi-check-lg me-1"></i>
+                                    Create User
+                                </span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter]
+    public EventCallback OnUserAdded { get; set; }
+
+    private CreateUserDto createUserModel = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+
+    private async Task HandleCreateUser()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync(
+                "api/Auth/register",
+                createUserModel);
+
+            var result = await response.Content
+                .ReadFromJsonAsync<RegisterResponse>();
+
+            if (response.IsSuccessStatusCode && result?.Success == true)
+            {
+                createUserModel = new();
+
+                await OnUserAdded.InvokeAsync();
+                await CloseModal();
+
+                return;
+            }
+
+            errorMessage = result?.Message
+                ?? "ไม่สามารถเพิ่มผู้ใช้งานได้";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"เกิดข้อผิดพลาด: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        IsVisible = false;
+        errorMessage = null;
+
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+}

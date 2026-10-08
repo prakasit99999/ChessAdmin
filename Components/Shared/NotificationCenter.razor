@@ -1,0 +1,281 @@
+@using ChessAdmin.Components.Models
+@using ChessAdmin.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IAsyncDisposable
+@inject INotificationService NotificationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+
+<div class="notification-center">
+    <!-- Bell Icon with Badge -->
+    <div class="notification-bell-container">
+        <button class="btn btn-link position-relative notification-bell-btn" 
+                @onclick="ToggleDropdown" 
+                style="color: inherit; text-decoration: none;">
+            <i class="bi bi-bell"></i>
+            @if (UnreadCount > 0)
+            {
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    @(UnreadCount > 99 ? "99+" : UnreadCount)
+                </span>
+            }
+        </button>
+    </div>
+
+    <!-- Dropdown Panel -->
+    @if (ShowDropdown)
+    {
+        <div class="notification-dropdown" style="position: absolute; right: 0; top: 100%; margin-top: 5px; z-index: 1000;">
+            <div class="card shadow-lg" style="min-width: 350px; max-width: 450px;">
+                <!-- Header -->
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="bi bi-bell"></i> แจ้งเตือน
+                    </h6>
+                    <div>
+                        @if (UnreadCount > 0)
+                        {
+                            <button class="btn btn-sm btn-link" 
+                                    @onclick="MarkAllAsRead"
+                                    title="ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว">
+                                <i class="bi bi-check-all"></i>
+                            </button>
+                        }
+                        <button class="btn btn-sm btn-link" 
+                                @onclick="CloseDropdown"
+                                style="color: inherit;">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notifications List -->
+                <div class="notification-list" style="max-height: 400px; overflow-y: auto;">
+                    @if (IsLoading)
+                    {
+                        <div class="p-3 text-center">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">กำลังโหลด...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (Notifications.Count == 0)
+                    {
+                        <div class="p-3 text-center text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">ไม่มีแจ้งเตือน</p>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var notification in Notifications)
+                        {
+                            <div class="notification-item p-3 border-bottom" 
+                                 style="background-color: @(notification.IsRead ? "transparent" : "#f8f9fa"); cursor: pointer;"
+                                 @onclick="() => HandleNotificationClick(notification)">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="badge bg-@GetSeverityClass(notification.Severity) me-2">
+                                                @notification.Severity.ToUpper()
+                                            </span>
+                                            @if (!notification.IsRead)
+                                            {
+                                                <span class="badge bg-primary">ใหม่</span>
+                                            }
+                                        </div>
+                                        <h6 class="mb-1 fw-bold">@notification.Title</h6>
+                                        <p class="mb-1 text-muted small">@notification.Message</p>
+                                        <small class="text-muted">
+                                            @GetTimeAgo(notification.CreatedAt)
+                                        </small>
+                                    </div>
+                                    <button class="btn btn-sm btn-link text-muted" 
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => MarkAsRead(notification)">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-light text-center">
+                    <a href="/notifications" class="text-decoration-none">
+                        ดูแจ้งเตือนทั้งหมด <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> Notifications { get; set; } = new();
+    private int UnreadCount { get; set; } = 0;
+    private bool ShowDropdown { get; set; } = false;
+    private bool IsLoading { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // ได้รับ Token จาก AuthenticationStateProvider
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "token");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                // ตั้งค่า NotificationService
+                await NotificationService.InitializeAsync(token);
+
+                // โหลดแจ้งเตือนเบื้องต้น
+                await LoadNotifications();
+
+                // ฟังการเปลี่ยนแปลง
+                NotificationService.OnNotificationReceived += OnNotificationReceived;
+                NotificationService.OnUnreadCountChanged += OnUnreadCountChanged;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"NotificationCenter Init Error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await NotificationService.GetNotificationsAsync(limit: 10);
+            if (response != null)
+            {
+                Notifications = response.Data;
+                UnreadCount = response.UnreadCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading notifications: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void ToggleDropdown()
+    {
+        ShowDropdown = !ShowDropdown;
+        if (ShowDropdown)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void CloseDropdown()
+    {
+        ShowDropdown = false;
+    }
+
+    private void OnNotificationReceived(NotificationDto notification)
+    {
+        Notifications.Insert(0, notification);
+        if (Notifications.Count > 10)
+        {
+            Notifications = Notifications.Take(10).ToList();
+        }
+        UnreadCount++;
+        StateHasChanged();
+    }
+
+    private void OnUnreadCountChanged()
+    {
+        StateHasChanged();
+    }
+
+    private async Task MarkAsRead(NotificationDto notification)
+    {
+        if (!notification.IsRead)
+        {
+            await NotificationService.MarkAsReadAsync(notification.Id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        await NotificationService.MarkAllAsReadAsync();
+        foreach (var notification in Notifications)
+        {
+            notification.IsRead = true;
+        }
+        UnreadCount = 0;
+        StateHasChanged();
+    }
+
+    private async Task HandleNotificationClick(NotificationDto notification)
+    {
+        if (!notification.IsRead)
+        {
+            await MarkAsRead(notification);
+        }
+    }
+
+    private string GetSeverityClass(string severity)
+    {
+        return severity.ToLower() switch
+        {
+            "success" => "success",
+            "warning" => "warning",
+            "error" => "danger",
+            "info" => "info",
+            _ => "secondary"
+        };
+    }
+
+    private string GetTimeAgo(DateTime createdAt)
+    {
+        var timeSpan = DateTime.UtcNow - createdAt;
+
+        return timeSpan.TotalSeconds < 60 ? "เมื่อสักครู่" :
+               timeSpan.TotalMinutes < 60 ? $"{(int)timeSpan.TotalMinutes} นาที" :
+               timeSpan.TotalHours < 24 ? $"{(int)timeSpan.TotalHours} ชั่วโมง" :
+               timeSpan.TotalDays < 7 ? $"{(int)timeSpan.TotalDays} วัน" :
+               createdAt.ToString("d MMM HH:mm");
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        NotificationService.OnNotificationReceived -= OnNotificationReceived;
+        NotificationService.OnUnreadCountChanged -= OnUnreadCountChanged;
+    }
+}
+
+<style>
+    .notification-bell-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .notification-bell-btn {
+        position: relative;
+        font-size: 1.5rem;
+        padding: 0.5rem;
+    }
+
+    .notification-bell-btn:hover {
+        opacity: 0.8;
+    }
+
+    .notification-item:hover {
+        background-color: #f0f0f0 !important;
+    }
+
+    .notification-list {
+        border: none;
+    }
+</style>

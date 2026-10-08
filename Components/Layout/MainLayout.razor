@@ -1,0 +1,18 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+<div class="page">
+    <main role="main">
+        @Body
+    </main>
+</div>
+
+<!-- Notification Components -->
+<NotificationToast />
+<NotificationCenter />
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
