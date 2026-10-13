@@ -135,7 +135,7 @@
                                                 </span>
                                             </td>
                                             <td><a class="btn btn-warning btn-sm" href="@($"/profile/edit/{user.UserId}")">View</a></td>
-                                            <td><a class="btn btn-danger btn-sm" href="user-delete.html">Delete</a></td>
+                                            <td><a class="btn btn-danger btn-sm" @onclick="() => DeleteUserAsync(user.UserId)">Delete</a></td>
                                         </tr>
                                     }
                                 }

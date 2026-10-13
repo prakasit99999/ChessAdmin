@@ -87,7 +87,7 @@ namespace ChessAdmin.Components.Pages
             {
             }
         }
-    
+
         private async Task ConnectUserHubAsync(CancellationToken cancellationToken = default)
         {
             errorMessage = null;
@@ -251,7 +251,39 @@ namespace ChessAdmin.Components.Pages
                 await userHubConnection.DisposeAsync();
             }
         }
+        // ลบ User
+        public async Task DeleteUserAsync(int userId)
+        {
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้นี้?");
+            if (!confirmed)
+            {
+                return;
+            }
+            try
+            {
+                var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "token");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+                var response = await Http.DeleteAsync($"/api/Admin/users/{userId}");
+                response.EnsureSuccessStatusCode();
+                // โหลดข้อมูลผู้ใช้ใหม่หลังจากลบสำเร็จ
+                await LoadUsersAsync(pageNumber, CancellationToken.None);
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"ไม่สามารถลบผู้ใช้ได้: {ex.Message}";
+            }
+        }
 
-    
+        public async Task RefreshUsersAsync()
+        {
+            await LoadUsersAsync(pageNumber, CancellationToken.None);
+            await InvokeAsync(StateHasChanged);
+
+        }
+
     }
 }
